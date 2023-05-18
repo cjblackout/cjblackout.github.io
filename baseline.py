@@ -1,7 +1,5 @@
-import time
 import numpy as np
 import cv2
-import matplotlib.pyplot as plt
 import pymeanshift as pms
 from fastapi import FastAPI, UploadFile, File
 import io
@@ -113,9 +111,9 @@ def baseline_mean_shift(img, processing_shape=PROCESSING_SHAPE, spatial_radius=S
 
         #perform mean shift segmentation
         try:
-            (segmented_image, labels_image, number_regions) = pms.segment(img, spatial_radius=spatial_radius, range_radius=range_radius, min_density=min_density)
+            (segmented_image, labels_image, _) = pms.segment(img, spatial_radius=spatial_radius, range_radius=range_radius, min_density=min_density)
         except Exception as e:
-            raise Exception("Error occurred during mean shift segmentation") from e
+            raise Exception("Error occurred in pymeanshift function.") from e
 
         # Take the upper half of labels_image and determine the most dominant label in the upper half
         upper_labels = labels_image[0:labels_image.shape[0]//2, 0:labels_image.shape[1]]
@@ -132,103 +130,4 @@ def baseline_mean_shift(img, processing_shape=PROCESSING_SHAPE, spatial_radius=S
     except ValueError as ve:
         raise ve
     except Exception as e:
-        raise Exception("Error occurred during sky detection") from e
-        
-def display_results(filename, print_mode='display', dataset_mode='original', spatial_radius=SPATIAL_RADIUS, 
-                    range_radius=RANGE_RADIUS, min_density=MIN_DENSITY):
-    """
-    Display the segmented image and original image side by side along with other information such as processing time,
-    precision, recall, and F1-score. If `dataset_mode` is set to 'validate', the function also calculates and displays 
-    the precision, recall, and F1-score. 
-
-    Args:
-    - filename (str): the filename of the image to be processed.
-    - print_mode (str): 'display' to display the images or 'silent' to suppress the display.
-    - dataset_mode (str): 'original' to process the image as part of the original dataset, or 'validate' to process the 
-                          image as part of the validation dataset and calculate the precision, recall, and F1-score.
-    - spatial_radius (int): the spatial radius used in the mean shift algorithm. Default is SPATIAL_RADIUS.
-    - range_radius (int): the range radius used in the mean shift algorithm. Default is RANGE_RADIUS.
-    - min_density (int): the minimum density used in the mean shift algorithm. Default is MIN_DENSITY.
-
-    Returns:
-    - If `dataset_mode` is set to 'validate', the function returns a list containing the precision, recall, F1-score, 
-      filename, time taken, spatial radius, range radius, and minimum density.
-    - If `dataset_mode` is set to 'original', the function returns a list containing 0s for precision, recall, and F1-score,
-      filename, time taken, spatial radius, range radius, and minimum density.
-    """
-
-    try:
-        start_time = time.time()
-
-        img = plt.imread(filename)
-        mask, segmented_image, labels_image = baseline_mean_shift(img, spatial_radius=spatial_radius, range_radius=range_radius, min_density=min_density)
-        time_taken = time.time() - start_time
-
-        after_img = cv2.bitwise_and(img, img, mask=mask)
-
-        # Display the images in 2 subplots 
-        if print_mode == 'display':
-            print('------------------------------------------------------------------------------------------------------------------------')
-            print("Processing: " + filename.split("\\")[-2] + ", spatial_radius: " + str(spatial_radius) + 
-                  ", range_radius: " + str(range_radius) + ", min_density: " + str(min_density))
-            print('Time taken: ', time_taken)
-
-            plt.title('Segmented Image')
-            plt.imshow(segmented_image)
-            plt.show()
-
-            plt.title('Labels Image')
-            plt.imshow(labels_image)
-            plt.show()
-
-            fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(20, 5))
-            fig.suptitle('Sky Segmentation')
-            ax1.imshow(after_img)
-            ax1.set_title('Result')
-            ax2.imshow(plt.imread(filename))
-            ax2.set_title('Original Image')
-            plt.show()
-
-            if dataset_mode == 'validate':
-                val_image = cv2.imread("C:\\Users\\cjbla\\OneDrive\\Desktop\\Code\\data\\dataset\\ValidationImages\\Skyfinder\\" + filename.split("\\")[-2] + ".png")
-                val_image = cv2.cvtColor(val_image, cv2.COLOR_BGR2GRAY)
-
-                # Calculate the precision and recall
-                true_pos = np.sum(np.logical_and(val_image, mask))
-                false_pos = np.sum(np.logical_and(np.logical_not(val_image), mask))
-                false_neg = np.sum(np.logical_and(val_image, np.logical_not(mask)))
-                precision = true_pos / (true_pos + false_pos)
-                recall = true_pos / (true_pos + false_neg)
-                f1 = 2 * (precision * recall) / (precision + recall)
-
-                print("Precision: " + str(precision))
-                print("Recall: " + str(recall))
-                print("F1: " + str(f1))
-
-                print('------------------------------------------------------------------------------------------------------------------------')
-                return [precision, recall, f1, filename, time_taken, spatial_radius, range_radius, min_density]
-
-            elif dataset_mode == 'original':
-                print('------------------------------------------------------------------------------------------------------------------------')
-                return [0, 0, 0, filename, time_taken, spatial_radius, range_radius, min_density]
-
-        else:
-            if dataset_mode == 'validate':
-                val_image = cv2.imread("C:\\Users\\cjbla\\OneDrive\\Desktop\\Code\\data\\dataset\\ValidationImages\\Skyfinder\\" + filename.split("\\")[-2] + ".png")
-                val_image = cv2.cvtColor(val_image, cv2.COLOR_BGR2GRAY)
-
-                # Calculate the precision and recall
-                true_pos = np.sum(np.logical_and(val_image, mask))
-                false_pos = np.sum(np.logical_and(np.logical_not(val_image), mask))
-                false_neg = np.sum(np.logical_and(val_image, np.logical_not(mask)))
-                precision = true_pos / (true_pos + false_pos)
-                recall = true_pos / (true_pos + false_neg)
-                f1 = 2 * (precision * recall) / (precision + recall)
-
-                return [precision, recall, f1, filename, time_taken, spatial_radius, range_radius, min_density]
-
-            elif dataset_mode == 'original':
-                return [0, 0, 0, filename, time_taken, spatial_radius, range_radius, min_density]
-
-    except Exception as e:
-        print("An error occurred:", str(e))
+        raise Exception("Error occurred during sky detection.") from e
