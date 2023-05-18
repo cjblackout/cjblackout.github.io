@@ -4,7 +4,7 @@
 
 ## Baseline Mean Shift App
 
-This is an API endpoint that performs baseline mean shift segmentation on an uploaded image and returns the resulting image with the mask applied. It utilizes the FastAPI framework and OpenCV library to process the images.
+This is an API endpoint that performs sky pixel detection using mean shift segmentation on an uploaded image and returns the resulting image with the mask applied. It utilizes the FastAPI framework and OpenCV library to process the images.
 
 ### Installation
 
@@ -51,6 +51,20 @@ To install and use the `baseline_mean_shift` function, you can follow these inst
    ```
 
    Make sure to replace `'image.jpg'` with the path to your actual image file.
+
+### Server Deployment
+
+To run the `baseline_mean_shift_app` using `uvicorn`, you can use the following command:
+
+```bash
+uvicorn baseline:app --reload --host 0.0.0.0 --port 8000
+```
+
+This command starts the server and listens on `http://0.0.0.0:8000/` for incoming requests.
+
+You can then send POST requests to the endpoint `http://0.0.0.0:8000/baseline_mean_shift_app` to perform baseline mean shift segmentation on images.
+
+Remember to replace the host and port values (`0.0.0.0` and `8000`) with the appropriate values based on your setup.
 
 ### Usage
 
