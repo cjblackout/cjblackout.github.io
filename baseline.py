@@ -4,6 +4,8 @@ import pymeanshift as pms
 from fastapi import FastAPI, UploadFile, File
 import io
 from fastapi.responses import StreamingResponse
+import logging
+import gc
 
 THRESHOLD = 0.5
 SPATIAL_RADIUS = 2
@@ -11,10 +13,12 @@ RANGE_RADIUS = 8
 MIN_DENSITY = 150
 PROCESSING_SHAPE = (256,256)
 
+logging.basicConfig(filename='server.log', encoding='utf-8', level=logging.DEBUG)
+
 app = FastAPI()
 
 @app.post("/baseline_mean_shift_app")
-async def baseline_mean_shift_app(image: UploadFile = File(...), processing_shape: tuple = PROCESSING_SHAPE,
+async def baseline_mean_shift_app(image: UploadFile = File(...), processing_shape: tuple = (256,256),
                               spatial_radius: int = SPATIAL_RADIUS, range_radius: int = RANGE_RADIUS,
                               min_density: int = MIN_DENSITY):
     """
@@ -50,6 +54,7 @@ async def baseline_mean_shift_app(image: UploadFile = File(...), processing_shap
     
     try:
         # Read the uploaded image as bytes
+
         contents = image.file.read()
         img_array = np.frombuffer(contents, np.uint8)
         img = cv2.imdecode(img_array, cv2.IMREAD_COLOR)
@@ -60,13 +65,20 @@ async def baseline_mean_shift_app(image: UploadFile = File(...), processing_shap
         # Convert the segmented image numpy array to bytes
         _, after_img_bytes = cv2.imencode(".jpg", after_img)
 
-        # Close the uploaded image file
-        await image.file.close() #type: ignore
+        #clear memory
+        del image
+        del contents
+        del img_array
+        del img
+        del mask
+        del after_img
+        gc.collect()
 
         # Return the after image as a streaming response
         return StreamingResponse(io.BytesIO(after_img_bytes), media_type="image/jpeg")
 
     except Exception as e:
+        logging.error(e)
         return {"error": str(e)}
 
 def baseline_mean_shift(img, processing_shape=PROCESSING_SHAPE, spatial_radius=SPATIAL_RADIUS, range_radius=RANGE_RADIUS, min_density=MIN_DENSITY):
@@ -103,16 +115,22 @@ def baseline_mean_shift(img, processing_shape=PROCESSING_SHAPE, spatial_radius=S
     try:
         # Check if the input image is a valid numpy.ndarray
         if not isinstance(img, np.ndarray):
+            logging.error("Input image must be a numpy.ndarray")
             raise ValueError("Input image must be a numpy.ndarray")
-
+        
         # Save the original shape of the image, resize it, and segment the image
         original_shape = img.shape
-        img = cv2.resize(img, processing_shape)
+        try:
+            img = cv2.resize(img, (256,256))
+        except Exception as e:
+            logging.error(e)
+            raise Exception("Error occurred during image resizing.") from e
 
         #perform mean shift segmentation
         try:
-            (segmented_image, labels_image, _) = pms.segment(img, spatial_radius=spatial_radius, range_radius=range_radius, min_density=min_density)
+            (segmented_image, labels_image, number_regions) = pms.segment(img, spatial_radius=spatial_radius, range_radius=range_radius, min_density=min_density)
         except Exception as e:
+            logging.error(e)
             raise Exception("Error occurred in pymeanshift function.") from e
 
         # Take the upper half of labels_image and determine the most dominant label in the upper half
@@ -130,4 +148,5 @@ def baseline_mean_shift(img, processing_shape=PROCESSING_SHAPE, spatial_radius=S
     except ValueError as ve:
         raise ve
     except Exception as e:
+        logging.error(e)
         raise Exception("Error occurred during sky detection.") from e
